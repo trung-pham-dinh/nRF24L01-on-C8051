@@ -5,6 +5,9 @@
 #include "C8051F930_defs.h"
 #include "peripherals.h"
 
+#define uint8_t unsigned char
+#define uint32_t unsigned int
+
 #define nRF_INTERRUPT_PERIOD 20 //us
 
 /* Register Address */
@@ -113,7 +116,11 @@ typedef enum { nRF_PA_MIN, nRF_PA_LOW, nRF_PA_HIGH, nRF_PA_MAX, nRF_PA_ERROR } P
 typedef enum { nRF_1MBPS, nRF_2MBPS} air_datarate; // page 54
 typedef enum { nRF_CRC_DISABLED = 0, nRF_CRC_8, nRF_CRC_16} crc_length;
 
-void nRF_begin();
-void nRF_timer_run();
-
+void nRF_timer_run(void);
+void nRF_begin(void);
+void nRF_setWritingPipe(uint8_t* tx_addr);
+void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe);
+void nRF_startListening(void);
+void nRF_stopListening(void);
+uint8_t nRF_available(uint8_t* pipe_num);
 #endif

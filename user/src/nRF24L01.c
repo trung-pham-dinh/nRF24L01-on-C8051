@@ -10,16 +10,34 @@ sbit miso = nRF_MISO_PIN;
 sbit mosi = nRF_MOSI_PIN;
 sbit irq = nRF_IRQ_PIN;
 
-unsigned char timer_flag;
+uint8_t timer_flag;
 unsigned int timer_count;
 
-unsigned char temp;
+uint8_t temp;
+uint8_t temp_arr[10];
 
+
+void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val);
 void nRF_delay_us(unsigned int us);
-unsigned char nRF_read_reg(unsigned char reg);
-void nRF_write_reg(unsigned char reg, unsigned char value);
+uint8_t nRF_write_reg(uint8_t reg, uint8_t value);
+uint8_t nRF_writeBuff_reg(uint8_t reg, uint8_t* buf, uint8_t len);
+uint8_t nRF_read_reg(uint8_t reg);
+uint8_t nRF_readBuff_reg(uint8_t reg, uint8_t* buf, uint8_t len);
+void nRF_setPALevel(PA_level level);
+void nRF_setAirDR(air_datarate rate);
+void nRF_setCRCLength(crc_length crc);
+void nRF_setChannel(uint8_t channel);
+uint8_t nRF_flush_tx(void);
+uint8_t nRF_flush_rx(void);
+uint8_t nRF_getStatus(void);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+//void nRF_testClk() {
+//	clk = 0;
+//	nRF_delay_us(100);
+//	clk=1;
+//	nRF_delay_us(100);
+//}
 
 void nRF_timer_run() { // call in timer ISR
 	if(timer_count) {
@@ -30,7 +48,7 @@ void nRF_timer_run() { // call in timer ISR
 	}
 }
 
-void nRF_write_bit(unsigned char *reg, unsigned char pos, unsigned char bit_val) {
+void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val) {
 	*reg = (bit_val)? (*reg)|(1<<pos) : (*reg)&~(1<<pos); 
 }
 
@@ -41,24 +59,30 @@ void nRF_delay_us(unsigned int us) {
 	timer_flag = 0;
 }
 
-void nRF_write_reg(unsigned char reg, unsigned char value) {
+uint8_t nRF_write_reg(uint8_t reg, uint8_t value) {
+	uint8_t status=0;
 	SPI_cs(0);
-	SPI_transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
+	status = SPI_transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
 	SPI_transfer(value);
 	SPI_cs(1);
+	
+	return status;
 }
 
-void nRF_writeBuff_reg(unsigned char reg, unsigned char* buf, unsigned char len) {
+uint8_t nRF_writeBuff_reg(uint8_t reg, uint8_t* buf, uint8_t len) {
+	uint8_t status=0;
 	SPI_cs(0);
-	SPI_transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
+	status = SPI_transfer( W_REGISTER | ( REGISTER_MASK & reg ) );
 	while(len--) {
 		SPI_transfer(*(buf++));
 	}
 	SPI_cs(1);
+	
+	return status;
 }
 
-unsigned char nRF_read_reg(unsigned char reg) {
-	unsigned char val;
+uint8_t nRF_read_reg(uint8_t reg) {
+	uint8_t val;
 	SPI_cs(0);
 	SPI_transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
 	val = SPI_transfer(NOP_CMD);
@@ -66,8 +90,20 @@ unsigned char nRF_read_reg(unsigned char reg) {
 	return(val);
 }
 
+uint8_t nRF_readBuff_reg(uint8_t reg, uint8_t* buf, uint8_t len) {
+	uint8_t status=0;
+	SPI_cs(0);
+	status=SPI_transfer( R_REGISTER | ( REGISTER_MASK & reg ) );
+	while(len--) {
+		*(buf++) = SPI_transfer(NOP_CMD);
+	}
+	SPI_cs(1);
+	
+	return status;
+}
+
 void nRF_setPALevel(PA_level level) {
-	unsigned char setup = nRF_read_reg(RF_SETUP);
+	uint8_t setup = nRF_read_reg(RF_SETUP);
 	
 	nRF_write_bit(&setup, RF_PWR, level&(1<<0));
 	nRF_write_bit(&setup, RF_PWR+1, level&(1<<1));
@@ -76,7 +112,7 @@ void nRF_setPALevel(PA_level level) {
 }
 
 void nRF_setAirDR(air_datarate rate) {
-	unsigned char setup = nRF_read_reg(RF_SETUP);
+	uint8_t setup = nRF_read_reg(RF_SETUP);
 	
 	nRF_write_bit(&setup, RF_DR, rate);
 	
@@ -84,7 +120,7 @@ void nRF_setAirDR(air_datarate rate) {
 }
 
 void nRF_setCRCLength(crc_length crc) {
-	unsigned char config = nRF_read_reg(CONFIG);
+	uint8_t config = nRF_read_reg(CONFIG);
 	if(crc == nRF_CRC_DISABLED) {
 		nRF_write_bit(&config, EN_CRC, 0);
 	}
@@ -100,22 +136,38 @@ void nRF_setCRCLength(crc_length crc) {
 	nRF_write_reg(CONFIG, config);
 }
 
-void nRF_setChannel(unsigned char channel) { // F= 2400 + RF_CH [MHz]
+void nRF_setChannel(uint8_t channel) { // F= 2400 + RF_CH [MHz]
 	nRF_write_reg(RF_CH, (channel < 127)? channel:127);
 }
 
-void nRF_flush_tx() {
+uint8_t nRF_flush_tx(void) {
+	uint8_t status = 0;
 	SPI_cs(0);
-	SPI_transfer(FLUSH_TX);
+	status = SPI_transfer(FLUSH_TX);
 	SPI_cs(1);
+	
+	return status;
 }
-void nRF_flush_rx() {
+uint8_t nRF_flush_rx(void) {
+	uint8_t status = 0;
 	SPI_cs(0);
-	SPI_transfer(FLUSH_RX);
+	status=SPI_transfer(FLUSH_RX);
 	SPI_cs(1);
+	
+	return status;
 }
 
-void nRF_begin() {
+uint8_t nRF_getStatus(void) { // page 47 "The content of the status register is always read to MISO after a high to low transition on CSN."
+	uint8_t status;
+	SPI_cs(0);
+	status = SPI_transfer(NOP_CMD);
+	SPI_cs(1);
+	return status;
+}
+
+
+//////////////////////////////////////////
+void nRF_begin(void) {
 	miso = 1; // input mode
 	irq = 1; // input mode
 	
@@ -141,13 +193,74 @@ void nRF_begin() {
 	
 	nRF_setChannel(76); // set freq of RF
 	
-	temp = nRF_read_reg(RF_CH);
-	
 	nRF_flush_tx();
 	nRF_flush_rx();
 }
 
-//void nRF_openWritingPipe(unsigned long long address) {
-////	unsigned char byte_addr[5];
-////	nRF_writeBuff_reg(RX_ADDR_P0));
-//}
+void nRF_setWritingPipe(uint8_t* tx_addr) {
+	nRF_writeBuff_reg(TX_ADDR, tx_addr, 5);
+}
+uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
+uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
+uint8_t datapipe_payload[] = {RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5};
+
+void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload,uint8_t pipe) { // payload <=32, pipe <= 6
+	if(pipe <= 1) { // page 35 7.7 multiceiver
+		nRF_writeBuff_reg(datapipe_addr[pipe], rx_addr, 5);
+	}
+	else if(pipe <= 6){
+		nRF_writeBuff_reg(datapipe_addr[pipe], rx_addr, 1);
+	}
+	else return;
+	
+	//nRF_readBuff_reg(datapipe_addr[pipe] ,temp_arr, 5);
+	
+	nRF_write_reg(datapipe_payload[pipe], (payload<32)? payload:32);
+	
+	//temp = nRF_read_reg(datapipe_payload[pipe]);
+	
+	nRF_write_reg(EN_RXADDR, nRF_read_reg(EN_RXADDR) | (1<<datapipe_en[pipe]) );
+	
+	//temp = nRF_read_reg(EN_RXADDR);
+}
+
+void nRF_startListening(void) {
+	nRF_write_reg(CONFIG, nRF_read_reg(CONFIG) | (1<<PWR_UP) | (1<<PRIM_RX));
+	nRF_write_reg(STATUS, (1<<RX_DR) | (1<<TX_DS) | (1<<MAX_RT));
+
+	nRF_flush_tx();
+	nRF_flush_rx();
+	
+	ce = 1;
+	nRF_delay_us(140);
+}
+
+void nRF_stopListening(void) {
+  ce = 0;
+  nRF_flush_tx();
+  nRF_flush_rx();
+}
+
+uint8_t nRF_available(uint8_t* pipe_num) {
+	uint8_t status = nRF_getStatus();
+	uint8_t result = (status&(1<<RX_DR));
+	
+	if(result) {
+		if(pipe_num) {
+			*pipe_num = (status >> RX_P_NO) & 0x07; // pipe_number
+		}
+		nRF_write_reg(STATUS, (1<<RX_DR)); // clear rx fifo flag
+		
+		if(status & (1<<TX_DS))
+    {
+      nRF_write_reg(STATUS,(1<<TX_DS)); // clear ack if auto_ack is activated(page 55)
+    }
+	}
+	return result!=0;
+}
+
+
+
+
+
+
