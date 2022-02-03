@@ -6,10 +6,11 @@
 
 uint8_t write_addr[] = {0x01,0x01,0x01,0x01,0x01};
 uint8_t read_addr[]  = {0x02,0x02,0x02,0x02,0x02};
-uint8_t read_addr2[]  = {0x04,0x02,0x02,0x02,0x04};
+uint8_t read_addr2[]  = {0x04,0x04,0x04,0x04,0x04};
 sbit nrf_led = P0^0;
 uint8_t read_buf[32];
-uint8_t payload = 32, pipe = 0;
+uint8_t payload = 32;
+uint8_t pipe = 0;
 
 const unsigned char low_reload = LOW_RELOAD_0;
 const unsigned char high_reload = HIGH_RELOAD_0;
@@ -29,11 +30,12 @@ void main() {
 	PCA0MD = 0;	// watchdog disable
 	Init_Device();
 	P1=P0=0x00;
+	pipe = 0;
 	
 	nRF_begin();
 	nRF_setWritingPipe(write_addr);
 	nRF_setReadingPipe(read_addr, payload, pipe);
-	nRF_setReadingPipe(read_addr2, 32, 1);
+	nRF_setReadingPipe(read_addr2, payload, 1);
 	nRF_startListening();
 	
 	while(1) {
@@ -45,7 +47,8 @@ void main() {
 //			nrf_led^=1;
 //			nRF_flush_rx();
 //		}
-		nRF_read_pipe(read_buf, payload, pipe);
+		nRF_read_pipe(read_buf, payload, 0);
+		//nRF_stopListening();
 	}
 }
 

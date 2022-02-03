@@ -10,21 +10,21 @@ sbit miso = nRF_MISO_PIN;
 sbit mosi = nRF_MOSI_PIN;
 sbit irq = nRF_IRQ_PIN;
 
-uint8_t timer_flag;
-unsigned int timer_count;
+static uint8_t timer_flag;
+static unsigned int timer_count;
 ////////////////////////////////////////
-uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
-uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
-uint8_t datapipe_payload[] = {RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5};
-uint8_t payload_arr[6];
-uint8_t dynamic_en_arr[6];
+static uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
+static uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
+static uint8_t datapipe_payload[] = {RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5};
+static uint8_t payload_arr[6];
+static uint8_t dynamic_en_arr[6];
 
-uint8_t datapipe[6][32];
-uint8_t datapipe_vld[6];
+static uint8_t datapipe[6][32];
+static uint8_t datapipe_vld[6];
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-uint8_t temp;
-uint8_t temp_arr[10];
+static uint8_t temp;
+static uint8_t temp_arr[32];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val);
@@ -222,6 +222,7 @@ void nRF_setWritingPipe(uint8_t* tx_addr) {
 }
 
 void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe) { // payload <=32, pipe <= 6
+	uint8_t vld_payload;
 	if(pipe <= 1) { // page 35 7.7 multiceiver
 		nRF_writeBuff_reg(datapipe_addr[pipe], rx_addr, 5);
 	}
@@ -230,14 +231,9 @@ void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe) { // pa
 	}
 	else return;
 	
-	//nRF_readBuff_reg(0x0A, temp_arr,5);
-	nRF_readBuff_reg(0x0B, temp_arr,5);
-	temp = nRF_read_reg(0x0C);
-	
-	//nRF_readBuff_reg(datapipe_addr[pipe] ,temp_arr, 5);
-	
-	nRF_write_reg(datapipe_payload[pipe], (payload<32)? payload:32);
-	payload_arr[pipe] = payload;
+	vld_payload = (payload<32)? payload:32;
+	nRF_write_reg(datapipe_payload[pipe], vld_payload);
+	payload_arr[pipe] = vld_payload;
 	
 	//temp = nRF_read_reg(datapipe_payload[pipe]);
 	
