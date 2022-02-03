@@ -123,4 +123,6 @@ void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe);
 void nRF_startListening(void);
 void nRF_stopListening(void);
 uint8_t nRF_available(uint8_t* pipe_num);
+void nRF_read(void);
+uint8_t nRF_read_pipe(void* buf, uint8_t len, uint8_t pipe);
 #endif

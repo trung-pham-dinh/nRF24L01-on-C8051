@@ -6,8 +6,10 @@
 
 uint8_t write_addr[] = {0x01,0x01,0x01,0x01,0x01};
 uint8_t read_addr[]  = {0x02,0x02,0x02,0x02,0x02};
-uint32_t count = 0;
+uint8_t read_addr2[]  = {0x04,0x02,0x02,0x02,0x04};
 sbit nrf_led = P0^0;
+uint8_t read_buf[32];
+uint8_t payload = 32, pipe = 0;
 
 const unsigned char low_reload = LOW_RELOAD_0;
 const unsigned char high_reload = HIGH_RELOAD_0;
@@ -30,15 +32,20 @@ void main() {
 	
 	nRF_begin();
 	nRF_setWritingPipe(write_addr);
-	nRF_setReadingPipe(read_addr, 32, 0);
+	nRF_setReadingPipe(read_addr, payload, pipe);
+	nRF_setReadingPipe(read_addr2, 32, 1);
 	nRF_startListening();
+	
 	while(1) {
 		nRF_delay_us(5000);
-		if(nRF_available(0)) {
-			count++;
-			nrf_led^=1;
-			nRF_flush_rx();
-		}
+		nRF_read();
+		
+		
+//		if(nRF_available(0)) {
+//			nrf_led^=1;
+//			nRF_flush_rx();
+//		}
+		nRF_read_pipe(read_buf, payload, pipe);
 	}
 }
 

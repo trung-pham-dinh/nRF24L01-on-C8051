@@ -12,11 +12,21 @@ sbit irq = nRF_IRQ_PIN;
 
 uint8_t timer_flag;
 unsigned int timer_count;
+////////////////////////////////////////
+uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
+uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
+uint8_t datapipe_payload[] = {RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5};
+uint8_t payload_arr[6];
+uint8_t dynamic_en_arr[6];
+
+uint8_t datapipe[6][32];
+uint8_t datapipe_vld[6];
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 uint8_t temp;
 uint8_t temp_arr[10];
 
-
+///////////////////////////////////////////////////////////////////////////////////////////////////
 void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val);
 void nRF_delay_us(unsigned int us);
 uint8_t nRF_write_reg(uint8_t reg, uint8_t value);
@@ -165,8 +175,17 @@ uint8_t nRF_getStatus(void) { // page 47 "The content of the status register is 
 	return status;
 }
 
+void nRF_init_var() {
+	uint8_t i=0;
+	for(;i<6;i++) {
+		payload_arr[i] = 0;
+		dynamic_en_arr[i] = 0;
+		datapipe_vld[i] = 0;
+		temp_arr[i%10] = 0;
+	}
+}
 
-//////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 void nRF_begin(void) {
 	miso = 1; // input mode
 	irq = 1; // input mode
@@ -176,6 +195,7 @@ void nRF_begin(void) {
 	ce = 0;
 	SPI_cs(1);
 	clk = 0;
+	nRF_init_var(); // initialize array and variable
 	
 	nRF_delay_us(5000);
 	
@@ -200,11 +220,8 @@ void nRF_begin(void) {
 void nRF_setWritingPipe(uint8_t* tx_addr) {
 	nRF_writeBuff_reg(TX_ADDR, tx_addr, 5);
 }
-uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
-uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
-uint8_t datapipe_payload[] = {RX_PW_P0, RX_PW_P1, RX_PW_P2, RX_PW_P3, RX_PW_P4, RX_PW_P5};
 
-void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload,uint8_t pipe) { // payload <=32, pipe <= 6
+void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe) { // payload <=32, pipe <= 6
 	if(pipe <= 1) { // page 35 7.7 multiceiver
 		nRF_writeBuff_reg(datapipe_addr[pipe], rx_addr, 5);
 	}
@@ -213,9 +230,14 @@ void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload,uint8_t pipe) { // pay
 	}
 	else return;
 	
+	//nRF_readBuff_reg(0x0A, temp_arr,5);
+	nRF_readBuff_reg(0x0B, temp_arr,5);
+	temp = nRF_read_reg(0x0C);
+	
 	//nRF_readBuff_reg(datapipe_addr[pipe] ,temp_arr, 5);
 	
 	nRF_write_reg(datapipe_payload[pipe], (payload<32)? payload:32);
+	payload_arr[pipe] = payload;
 	
 	//temp = nRF_read_reg(datapipe_payload[pipe]);
 	
@@ -251,8 +273,7 @@ uint8_t nRF_available(uint8_t* pipe_num) {
 		}
 		nRF_write_reg(STATUS, (1<<RX_DR)); // clear rx fifo flag
 		
-		if(status & (1<<TX_DS))
-    {
+		if(status & (1<<TX_DS)) {
       nRF_write_reg(STATUS,(1<<TX_DS)); // clear ack if auto_ack is activated(page 55)
     }
 	}
@@ -260,7 +281,39 @@ uint8_t nRF_available(uint8_t* pipe_num) {
 }
 
 
+void nRF_read(void) {
+	uint8_t payload;
+	uint8_t* current;
 
+	uint8_t pipe=0;
+	while(nRF_available(&pipe)) {
+		datapipe_vld[pipe] = 1;
+		payload = payload_arr[pipe];
+		current = datapipe[pipe];
+		
+		SPI_cs(0);
+		SPI_transfer(R_RX_PAYLOAD);
+		while(payload--) {
+			*(current++) = SPI_transfer(NOP_CMD);
+		}	
+		SPI_cs(1);
+	}
+}
 
-
-
+uint8_t nRF_read_pipe(void* buf, uint8_t len, uint8_t pipe) {
+	uint8_t data_len;
+	uint8_t *current, *buff_current;
+	
+	if(!datapipe_vld[pipe]) return 0;
+	
+	
+	datapipe_vld[pipe] = 0;
+	data_len = (len < payload_arr[pipe])? len:payload_arr[pipe];
+	
+	current = (uint8_t*)buf;
+	buff_current = datapipe[pipe];
+	while(data_len--) {
+		*(current++) = *(buff_current++);
+	}	
+	return 1;
+}
