@@ -11,7 +11,7 @@ sbit mosi = nRF_MOSI_PIN;
 sbit irq = nRF_IRQ_PIN;
 
 static data uint8_t timer_flag; // data for faster access
-static data unsigned int timer_count; // data for faster access
+static data unsigned long int timer_count; // data for faster access
 ////////////////////////////////////////
 static uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
 static uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
@@ -28,7 +28,7 @@ static uint8_t temp_arr[32];
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val);
-void nRF_delay_us(unsigned int us);
+void nRF_delay_us(unsigned long int us);
 uint8_t nRF_write_reg(uint8_t reg, uint8_t value);
 uint8_t nRF_writeBuff_reg(uint8_t reg, uint8_t* buf, uint8_t len);
 uint8_t nRF_read_reg(uint8_t reg);
@@ -61,7 +61,7 @@ void nRF_write_bit(uint8_t *reg, uint8_t pos, uint8_t bit_val) {
 	*reg = (bit_val)? (*reg)|(1<<pos) : (*reg)&~(1<<pos); 
 }
 
-void nRF_delay_us(unsigned int us) {
+void nRF_delay_us(unsigned long int us) {
 	timer_flag = 0;
 	timer_count = us / nRF_INTERRUPT_PERIOD;
 	while(!timer_flag) {}

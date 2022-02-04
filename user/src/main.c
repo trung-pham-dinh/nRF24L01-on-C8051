@@ -15,21 +15,20 @@ uint8_t read_addr2[]  = {0x04,0x04,0x04,0x04,0x04};
 sbit nrf_led = P0^0;
 uint8_t read_buf[32];
 uint8_t write_buf[32];
-int count;
+int count=0;
 
 
 const unsigned char low_reload = LOW_RELOAD_0;
 const unsigned char high_reload = HIGH_RELOAD_0;
 #pragma OT(1)
 void TIMER_ISR() interrupt INTERRUPT_TIMER0 {
-	
 	nRF_timer_run();
 	
 	TL0 = low_reload;
   TH0 = high_reload;
 }
 
-extern void nRF_delay_us(unsigned int us);
+extern void nRF_delay_us(unsigned long int us);
 extern uint8_t nRF_flush_rx(void);
 extern void nRF_testClk();
 
@@ -45,6 +44,7 @@ void main() {
 	nRF_stopListening();
 	while(1) {
 		nRF_delay_us(2000000);
+		nrf_led^=1;
 		//nRF_read();
 		
 		
@@ -58,7 +58,6 @@ void main() {
 		nRF_write(write_buf, 6);
 		//nRF_write("hello\0", 6);
 		//nRF_testClk();
-		nrf_led ^= 1;
 	}
 }
 
