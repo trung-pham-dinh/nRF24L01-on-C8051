@@ -12,11 +12,13 @@ void Timer_Init()
     TCON      = 0x10;
     TMOD      = 0x01;
     CKCON     = 0x01;
+    TL0       = 0x9C;
+    TH0       = 0xFF;
 }
 
 void Port_IO_Init()
 {
-    // P0.0  -  Unassigned,  Open-Drain, Digital
+    // P0.0  -  Unassigned,  Push-Pull,  Digital
     // P0.1  -  Unassigned,  Open-Drain, Digital
     // P0.2  -  Unassigned,  Open-Drain, Digital
     // P0.3  -  Unassigned,  Open-Drain, Digital
@@ -43,6 +45,7 @@ void Port_IO_Init()
     // P2.6  -  Unassigned,  Push-Pull,  Digital
     // P2.7  -  Skipped,     Open-Drain, Digital
 
+    P0MDOUT   = 0x01;
     P2MDOUT   = 0x78;
     XBR2      = 0x40;
 }

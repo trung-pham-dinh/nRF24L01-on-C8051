@@ -10,8 +10,8 @@ sbit miso = nRF_MISO_PIN;
 sbit mosi = nRF_MOSI_PIN;
 sbit irq = nRF_IRQ_PIN;
 
-static uint8_t timer_flag;
-static unsigned int timer_count;
+static data uint8_t timer_flag; // data for faster access
+static data unsigned int timer_count; // data for faster access
 ////////////////////////////////////////
 static uint8_t datapipe_addr[] = {RX_ADDR_P0, RX_ADDR_P1, RX_ADDR_P2, RX_ADDR_P3, RX_ADDR_P4, RX_ADDR_P5};
 static uint8_t datapipe_en[] = {ERX_P0, ERX_P1, ERX_P2, ERX_P3, ERX_P4, ERX_P5};
@@ -42,13 +42,12 @@ uint8_t nRF_flush_rx(void);
 uint8_t nRF_getStatus(void);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-//void nRF_testClk() {
-//	clk = 0;
-//	nRF_delay_us(100);
-//	clk=1;
-//	nRF_delay_us(100);
-//}
-
+void nRF_testClk() {
+	clk = 0;
+	nRF_delay_us(100);
+	clk=1;
+	nRF_delay_us(100);
+}
 void nRF_timer_run() { // call in timer ISR
 	if(timer_count) {
 		timer_count--;
@@ -173,6 +172,17 @@ uint8_t nRF_getStatus(void) { // page 47 "The content of the status register is 
 	status = SPI_transfer(NOP_CMD);
 	SPI_cs(1);
 	return status;
+}
+
+void nRF_powerDown(void)
+{
+  nRF_write_reg(CONFIG, nRF_read_reg(CONFIG) & ~(1<<PWR_UP));
+}
+
+void nRF_powerUp(void)
+{
+	nRF_write_reg(CONFIG, ( nRF_read_reg(CONFIG) | (1<<PWR_UP) ) & ~(1<<PRIM_RX) );
+	nRF_delay_us(160);
 }
 
 void nRF_init_var() {
@@ -312,4 +322,42 @@ uint8_t nRF_read_pipe(void* buf, uint8_t len, uint8_t pipe) {
 		*(current++) = *(buff_current++);
 	}	
 	return 1;
+}
+
+void nRF_write(const void* buf, uint8_t len) {
+	uint8_t status, data_len, blank_len;
+	const uint8_t* current = (uint8_t*)buf;
+	
+	nRF_powerUp();
+
+	// send payload
+	data_len = (len<32)? len:32;
+	blank_len = 32-data_len;
+	
+	SPI_cs(0);
+	SPI_transfer(W_TX_PAYLOAD);
+	while(data_len--) {
+		SPI_transfer(*(current++));
+	}
+	while(blank_len--) {
+		SPI_transfer(0);
+	}
+	SPI_cs(1);
+	
+	
+	ce = 1;
+  nRF_delay_us(20);
+  ce = 0;
+	
+	///////////////////////////////
+	
+	do {
+		status = nRF_getStatus();
+	}while(!(status & ((1<<TX_DS) | (1<<MAX_RT))));
+	
+	
+	nRF_write_reg(STATUS, (1<<MAX_RT) | (1<<TX_DS)); // clear flag
+	
+	nRF_powerDown();
+	nRF_flush_tx();
 }

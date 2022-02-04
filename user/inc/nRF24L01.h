@@ -8,7 +8,7 @@
 #define uint8_t unsigned char
 #define uint32_t unsigned int
 
-#define nRF_INTERRUPT_PERIOD 20 //us
+#define nRF_INTERRUPT_PERIOD 20UL //us
 
 /* Register Address */
 #define CONFIG      0x00
@@ -123,6 +123,7 @@ void nRF_setReadingPipe(uint8_t* rx_addr, uint8_t payload, uint8_t pipe);
 void nRF_startListening(void);
 void nRF_stopListening(void);
 uint8_t nRF_available(uint8_t* pipe_num);
-void nRF_read(void);
-uint8_t nRF_read_pipe(void* buf, uint8_t len, uint8_t pipe);
+void nRF_read(void); // call contiguously
+uint8_t nRF_read_pipe(void* buf, uint8_t len, uint8_t pipe); // call to get payload
+void nRF_write(const void* buf, uint8_t len);
 #endif
